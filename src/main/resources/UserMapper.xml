@@ -10,4 +10,16 @@
     <select id="getUserById" parameterType="int" resultType="com.msq.pojo.User">
         select * from user where id = #{id}
     </select>
+
+    <insert id="addUser" parameterType="com.msq.pojo.User">
+        insert into user(id, name, pwd) values(#{id}, #{name}, #{pwd});
+    </insert>
+
+    <update id="updateUser" parameterType="com.msq.pojo.User">
+        update user set name=#{name}, pwd=#{pwd} where id=#{id};
+    </update>
+
+    <delete id="deleteUser" parameterType="int">
+        delete from user where id = #{id}
+    </delete>
 </mapper>

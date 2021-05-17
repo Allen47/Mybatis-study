@@ -221,3 +221,78 @@ SqlSession 是访问数据库的，**且不是线程安全**，必须需要进�
 ## 三、CRUD
 
 注：@Test 声明单元测试是要求void修饰方法且方法无参
+
+### namespace
+
+UserMapper 中的 namespace 必须和 mapper 名称一致才会生效
+
+
+
+### CRUD
+
+接口
+
+```JAVA
+public interface UserMapper {
+    List<User> getUserList();
+
+    User getUserById(int id);
+    
+    int addUser(User user);
+
+    int updateUser(User user);
+
+    void deleteUser(int id);
+
+}
+```
+
+
+
+mapper 实现
+
+```XML
+<select id="getUserById" parameterType="int" resultType="com.msq.pojo.User">
+        select * from user where id = #{id}
+    </select>
+
+    <insert id="addUser" parameterType="com.msq.pojo.User">
+        insert into user(id, name, pwd) values(#{id}, #{name}, #{pwd});
+    </insert>
+
+    <update id="updateUser" parameterType="com.msq.pojo.User">
+        update user set name=#{name}, pwd=#{pwd} where id=#{id};
+    </update>
+
+    <delete id="deleteUser" parameterType="int">
+        delete from user where id = #{id}
+    </delete>
+```
+
+
+
+测试：
+
+```java
+@Test
+    public void getUser(){
+        SqlSession sqlSession = MybatisUtils.getSqlSession();
+        UserMapper userMapper = sqlSession.getMapper(UserMapper.class);
+        User user = userMapper.getUserById(1);
+        System.out.println(user);
+        sqlSession.close();
+
+    }
+
+    @Test
+    public void addUser(){
+        SqlSession sqlSession = MybatisUtils.getSqlSession();
+        UserMapper mapper = sqlSession.getMapper(UserMapper.class);
+        int res = mapper.addUser(new User(4, "msq", "123456"));
+        if(res > 0)
+            System.out.println("新增用户成功");
+        sqlSession.commit();
+        sqlSession.close();
+    }
+```
+
