@@ -1,4 +1,4 @@
-## Mybatis-9.28
+## Mybatis 学习
 
 环境：
 
@@ -94,7 +94,7 @@ spring、springMVC、SpringBoot 均如是
 
 思路：搭建环境 --> 导入 Mybatis --> 编写代码 --> 测试
 
-### 2-1 搭建环境
+### 2.1 搭建环境
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -143,7 +143,7 @@ SqlSession 是访问数据库的，**且不是线程安全**，必须需要进�
 
 
 
-### 2-2 创建一个模块
+### 2.2 创建一个模块
 
 - 在resource下创建配置文件 mybaitis-config.xml，从官网复制内容
 
@@ -222,13 +222,13 @@ SqlSession 是访问数据库的，**且不是线程安全**，必须需要进�
 
 注：@Test 声明单元测试是要求void修饰方法且方法无参
 
-### namespace
+### 3.1 namespace
 
 UserMapper 中的 namespace 必须和 mapper 名称一致才会生效
 
 
 
-### CRUD
+### 3.2 CRUD
 
 接口
 
@@ -295,4 +295,108 @@ mapper 实现
         sqlSession.close();
     }
 ```
+
+
+
+### 3.3 万能 Map
+
+有时候，实体类的字段和参数过多，但是做 CRUD 时可能仅仅需要 id 字段就行，就可以考虑使用 Map 来做 CRUD。（野路子，不推荐使用）
+
+```java
+int addUser2(Map<String, Object> map);
+```
+
+```xml
+<insert id="addUser2" parameterType="map">
+    insert into user(id, pwd) values(#{userId}, #{userPwd});
+</insert>
+```
+
+注：此时 values 后面的字段要和 Map 定义的 key 一致，而不是和 pojo 的属性名一致
+
+Test：
+
+```java
+ @Test
+    public void addUser(){
+        SqlSession sqlSession = MybatisUtils.getSqlSession();
+        UserMapper mapper = sqlSession.getMapper(UserMapper.class);
+        Map<String, Object> map = new HashMap<>();
+        map.put("userId", 5);
+        map.put("userPwd", "5555")
+        mapper.addUser2(map);
+        sqlSession.commit();
+        sqlSession.close();
+    }
+```
+
+
+
+使用 Map 传递参数，直接从sql中取出key即可；
+
+使用对象传递，从sql中取属性；
+
+使用基本类型且只有一个参数，可以直接从sql中取方法的参数名；
+
+多个数量不定的参数时，用**Map或者注解**
+
+
+
+## 四、配置解析
+
+### 4.1 核心配置文件
+
+- mybatis-config.xml
+- 其中包含了深刻印象 mybatis 行为的设置和属性信息
+
+
+
+### 4.2 环境配置（environment）
+
+Mybatis 可以配置多个环境，但是最终的 SqlSessionFactory 实例只能选择一种环境
+
+![image-20210518111558302](Mybatis笔记.assets\image-20210518111558302.png)
+
+- transactionManagement：在 MyBatis 中有两种类型的事务管理器（也就是 type="[JDBC|MANAGED]"）
+
+- dataSource 元素使用标准的 JDBC 数据源接口来配置 JDBC 连接对象的资源。有三种内建的数据源类型（也就是 type="[UNPOOLED|POOLED|JNDI]"）
+
+  
+
+### 4.3 properties
+
+可以在外部编写配置文件 properties，再在xml中进行应用实现动态配置。
+
+- db.properties
+
+```properties
+driver=com.mysql.jdbc.Driver
+url=jdbc:mysql://localhost:3306/mybatis_study?serverTimezone=GMT%2B8
+username=root
+password=123456
+```
+
+- mybatis-config.xml
+
+```xml
+<environment id="development">
+    <transactionManager type="JDBC"/>
+    <dataSource type="POOLED">
+        <property name="driver" value="${driver}"/>
+        <property name="url" value="${url}"/>
+        <property name="username" value="${username}"/>
+        <property name="password" value="${password}"/>
+    </dataSource>
+</environment>
+```
+
+注：属性若不止在一个地方进行了配置，优先级如下：
+
+如果一个属性在不只一个地方进行了配置，那么，MyBatis 将按照下面的顺序来加载：
+
+- 首先读取在 properties 元素体内指定的属性。
+- 然后根据 properties 元素中的 resource 属性读取类路径下属性文件，或根据 url 属性指定的路径读取属性文件，并覆盖之前读取过的同名属性。
+- 最后读取作为方法参数传递的属性，并覆盖之前读取过的同名属性。
+
+即：方法参数传递的属性 > resource/url 属性中指定的配置 > properties 元素中指定的属性
 
