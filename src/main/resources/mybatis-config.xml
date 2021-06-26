@@ -6,7 +6,7 @@
 
     <!-- 引入外部配置文件 -->
     <properties resource="db.properties">
-        <property name="password" value="1111"/> <!-- 没起作用，会被properties文件的属性符改 -->
+        <property name="password" value="1ss"/> <!-- 没起作用，会被properties文件的属性符改 -->
     </properties>
 
     <environments default="development">

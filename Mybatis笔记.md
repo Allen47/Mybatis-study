@@ -269,6 +269,8 @@ mapper 实现
     </delete>
 ```
 
+**注意：增删改需要提交事务，否则无法成功入库！**
+
 
 
 测试：
@@ -301,6 +303,10 @@ mapper 实现
 ### 3.3 万能 Map
 
 有时候，实体类的字段和参数过多，但是做 CRUD 时可能仅仅需要 id 字段就行，就可以考虑使用 Map 来做 CRUD。（野路子，不推荐使用）
+
+思路：1.创建接口时的参数类型写 Map，mapper 中parameterType=“map”，values 取 map 中的 key 值；
+
+2.创建 map，添加 key-value
 
 ```java
 int addUser2(Map<String, Object> map);
@@ -342,12 +348,34 @@ Test：
 
 
 
+### 3.4 模糊查询
+
+写法1.在Java代码执行的时候，传递通配符%
+
+```java
+List<User> userList = mapper.getUserLike("%李%");
+```
+
+
+
+写法2.在sql中拼接%，这种方法会有sql注入的风险
+
+```java
+select * from user where name like "%#{value}%"
+```
+
+
+
+
+
 ## 四、配置解析
 
 ### 4.1 核心配置文件
 
 - mybatis-config.xml
 - 其中包含了深刻印象 mybatis 行为的设置和属性信息
+- 务必掌握：属性（properties）、设置（setting）、别名（alias）
+- mybatis-config.xml 各个标签的顺序是有硬性规定的
 
 
 
@@ -363,7 +391,7 @@ Mybatis 可以配置多个环境，但是最终的 SqlSessionFactory 实例只�
 
   
 
-### 4.3 properties
+### 4.3 属性 properties
 
 可以在外部编写配置文件 properties，再在xml中进行应用实现动态配置。
 
@@ -394,9 +422,187 @@ password=123456
 
 如果一个属性在不只一个地方进行了配置，那么，MyBatis 将按照下面的顺序来加载：
 
-- 首先读取在 properties 元素体内指定的属性。
-- 然后根据 properties 元素中的 resource 属性读取类路径下属性文件，或根据 url 属性指定的路径读取属性文件，并覆盖之前读取过的同名属性。
+- 首先读取在 **properties 元素体**内指定的属性。
+- 然后根据 properties 元素中的 **resource 属性**读取类路径下属性文件，或根据 url 属性指定的路径读取属性文件，并覆盖之前读取过的同名属性。
 - 最后读取作为方法参数传递的属性，并覆盖之前读取过的同名属性。
 
 即：方法参数传递的属性 > resource/url 属性中指定的配置 > properties 元素中指定的属性
+
+**原则是：先读取公共的配置，再读取私有/外部的配置进行覆盖**
+
+
+
+### 4.4 类型别名 typeAlias
+
+用于给 Java 类设置一个更短的名字，可以给每个类取别名，也可以指定一个包（默认包下的类名为别名）
+
+方法一：适用于类少的时候，可以 DIY 别名
+
+```xml
+<typeAliases>
+	<typeAlias type="com.msq.pojo.User" alias="User"/>
+</typeAliases>
+```
+
+
+
+方法二：适用于类多的时候，如果需要自定义别名，则在类上加 @Alias('别名') 即可
+
+```xml
+<typeAliases>
+	<package name="com.msq.pojo"/>
+</typeAliases>
+```
+
+
+
+加了‘_’是基本类型的别名，不加‘ _ ‘则是包装类型的别名（ -int是int的别名，int是Integer的别名），不区分大小写
+
+![image-20210603202429441](Mybatis笔记.assets\image-20210603202429441.png)
+
+
+
+### 4.5 设置 setting
+
+记住几个就行：cacheEnabled、useGeneratedKeys、lazyLoadTriggerMethods、logImpl
+
+![image-20210603205757191](Mybatis笔记.assets\image-20210603205757191.png)
+
+![image-20210603205817346](Mybatis笔记.assets\image-20210603205817346.png)
+
+![image-20210603205851560](Mybatis笔记.assets\image-20210603205851560.png)
+
+![image-20210603205903307](Mybatis笔记.assets\image-20210603205903307.png)
+
+使用方式：
+
+```xml
+<settings>
+	<setting name="cacheEnabled" value="true"/>
+    <setting name="useGeneratedKeys" value="false"/>
+    <setting name="lazyLoadTriggerMethods" value="equals,clone,hashCode,toString"/>
+</settings>
+```
+
+再次提醒，**各个标签的顺序有硬性规定**
+
+
+
+### 4.6 插件 plugin
+
+暂时略过具体内容，以后使用频率较高的三个：mybatis-generator-core、mybatis-plus、通用 mapper
+
+
+
+### 4.7 映射器 mapper
+
+有三种方式：resource、class、package 来在核心配置中注册mapper。区别，后两者，接口和 xml 必须同名&&位于同个文件夹下，前者不需
+
+```xml
+<mapper>
+	<resource name=""/>
+    <class name=""/>
+    <package name=""/>
+</mapper>
+```
+
+
+
+### 4.8 生命周期
+
+![image-20210608002611603](Mybatis笔记.assets\image-20210608002611603.png)
+
+**SqlSessionFactoryBuilder:**
+
+- 一旦创建了 SqlSessionFactoryBuilder，创建出 SqlSessionFactory 后就不再需要它了
+- 适合作为局部变量
+
+
+
+**SqlSessionFactory：**
+
+- 可以理解为数据库连接池，创建后在应用运行期间一直存在，**没有任何理由丢弃它or重新创建一个**
+- 适合作为应用作用域，通过单例/静态单例模式来使用
+
+
+
+**SqlSession：**
+
+- 连接到连接池的一个请求
+- 不是线程安全的，不能被共享，用完之后需要赶紧被关闭，否则资源会被占用
+- 最佳作用域：请求、方法作用域
+
+
+
+![image-20210608004328447](Mybatis笔记.assets\image-20210608004328447.png)
+
+这里面的每个 Mapper，都代表一个具体业务
+
+
+
+### 4.9 属性名和字段名不一致
+
+User 类：
+
+```java
+public class User{
+    int id;
+    String name;
+    String password;
+}
+```
+
+数据库的各个列：id、name、pwd
+
+查询：select * from users where id=1，结果是User{1,"msq",null}
+
+原因：上述查询语句可以写做 select id, name, pwd from users where id=1，而结果无法和 password 作映射，所以那个属性就是 null
+
+解决：
+
+**方法一：**起别名
+
+```sql
+select id, name, pwd as password from users where id=1
+```
+
+
+
+**方法二：**resultMap 结果集映射
+
+![image-20210608005202908](Mybatis笔记.assets\image-20210608005202908.png)
+
+- resultMap 是Mybatis 中最重要、最强大的元素
+
+- 其设计思想是：对简单的语句不需要配置显示的映射，对复杂的语句描述关系即可
+
+- 最优秀的地方在于，虽然对它相当了解了，但是根本不需要显式地用到它们【哪个列需要映射，单独弄那个即可】
+
+  ![image-20210608005940909](Mybatis笔记.assets\image-20210608005940909.png)
+
+## 五、日志
+
+- 日志工厂：
+  - STDOUT_LOGGING ，直接引用即可。细节在于名字、value**“不能有多余空格”**
+  - log4j：需要掌握。具体直接搜吧
+
+
+
+## 六、分页
+
+**为什么需要分页**？
+
+- 减少数据的处理量
+
+
+
+**使用 Limit 分页**
+
+```sql
+语法：select * from table limit startIndex, pageSize
+select * from user limit 1, 3
+
+注：数据库的索引也是从0开始
+第二个参数是页面长度，而不是结束的下标
+```
 
